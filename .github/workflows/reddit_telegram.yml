@@ -1,0 +1,38 @@
+name: Reddit → Telegram
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
+  workflow_dispatch:          # allow manual trigger from GitHub UI
+
+permissions:
+  contents: write             # needed to commit sent_posts.json back
+
+jobs:
+  push-posts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python reddit_to_telegram.py
+
+      - name: Commit updated sent_posts.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add sent_posts.json
+          git diff --cached --quiet || git commit -m "chore: update sent posts state [skip ci]"
+          git push
